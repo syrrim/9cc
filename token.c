@@ -167,6 +167,7 @@ static struct {
     {"||", TK_LOGOR},   {"*=", TK_MUL_EQ},  {"/=", TK_DIV_EQ},
     {"%=", TK_MOD_EQ},  {"+=", TK_ADD_EQ},  {"-=", TK_SUB_EQ},
     {"&=", TK_AND_EQ},  {"^=", TK_XOR_EQ},  {"|=", TK_OR_EQ},
+    {"...", TK_ELIPSE},
     {NULL, 0},
 };
 

@@ -131,6 +131,7 @@ enum {
   TK_AND_EQ,    // &=
   TK_XOR_EQ,    // ^=
   TK_OR_EQ,     // |=
+  TK_ELIPSE,    // ...
   TK_RETURN,    // "return"
   TK_SIZEOF,    // "sizeof"
   TK_ALIGNOF,   // "_Alignof"

@@ -30,6 +30,7 @@ typedef struct Macro {
   int ty;
   Vector *tokens;
   Vector *params;
+  bool va;
 } Macro;
 
 static Macro *new_macro(int ty, char *name) {
@@ -168,37 +169,19 @@ static void replace_hash_ident(Macro *m) {
   m->tokens = v;
 }
 
-static Vector *read_one_arg() {
-  Vector *v = new_vec();
+static void read_nested(Vector *v) {
   Token *start = peek();
   int level = 0;
-
-  while (!is_eof()) {
-    Token *t = peek();
-    if (level == 0)
-      if (t->ty == ')' || t->ty == ',')
-        return v;
-
-    next();
+  do{
+    Token *t = next();
+    if(is_eof())
+      bad_token(start, "unclosed macro argument");
     if (t->ty == '(')
       level++;
     else if (t->ty == ')')
       level--;
     vec_push(v, t);
-  }
-  bad_token(start, "unclosed macro argument");
-}
-
-static Vector *read_args() {
-  Vector *v = new_vec();
-  if (consume(')'))
-    return v;
-  vec_push(v, read_one_arg());
-  while (!consume(')')) {
-    get(',', "comma expected");
-    vec_push(v, read_one_arg());
-  }
-  return v;
+  }while(level);
 }
 
 static bool emit_special_macro(Token *t) {
@@ -219,11 +202,30 @@ static void apply_objlike(Macro *m, Token *start) {
 }
 
 static void apply_funclike(Macro *m, Token *start) {
-  get('(', "comma expected");
+  get('(', "open paren expected");
 
-  Vector *args = read_args();
-  if (m->params->len != args->len)
-    bad_token(start, "number of parameter does not match");
+  Vector *args = new_vec();
+  for (int i = 0; i<m->params->len-1; i++) {
+    Vector *arg = new_vec();
+    while (!consume(',')) {
+      if(peek()->ty == ')')
+        bad_token(peek(), "not enough params");
+      read_nested(arg);
+    }
+    vec_push(args, arg);
+  }
+  if (m->params->len) {
+    Token *t = peek();
+    Vector *arg = new_vec();
+    while (t->ty != ')') {
+      if(!m->va && t->ty == ',')
+        bad_token(t, "too many params");
+      read_nested(arg);
+      t = peek();
+    }
+    vec_push(args, arg);
+  }
+  get(')', "close paren expected");
 
   for (int i = 0; i < m->tokens->len; i++) {
     Token *t = m->tokens->data[i];
@@ -255,6 +257,12 @@ static void define_funclike(char *name) {
   while (!consume(')')) {
     if (m->params->len > 0)
       get(',', ", expected");
+    if (consume(TK_ELIPSE)) {
+      vec_push(m->params, "__VA_ARGS__");
+      m->va = true;
+      get(')', "closing paren expected");
+      break;
+    }
     vec_push(m->params, ident("parameter name expected"));
   }
 
